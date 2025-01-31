@@ -1,0 +1,17 @@
+---
+title: "Analisis exploratorio"
+author: "Gustavo Cruz"
+date: "2025-01-31"
+output: html_document
+---
+
+```{r}
+# Aqui agregar el path al archivo csv, a mi me inicia en /home
+movies <- read.csv('movies.csv', stringsAsFactors = FALSE)
+```
+
+```{r}
+# 1. Exploracion de datos 
+summary(movies)
+```
+
