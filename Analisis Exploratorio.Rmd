@@ -14,4 +14,31 @@ movies <- read.csv('movies.csv', stringsAsFactors = FALSE)
 # 1. Exploracion de datos 
 summary(movies)
 ```
+El resumen generado con summary(movies) muestra estadísticas descriptivas de las variables en el dataset. Para las variables numéricas, proporciona valores mínimos, máximos, media, mediana y cuartiles, lo que ayuda a entender su distribución y detectar posibles valores atípicos. En el caso de las variables categóricas o de texto, indica la cantidad de registros y su tipo de dato. Además, se observa la presencia de valores faltantes en algunas columnas, como video, revenue y runtime, lo que sugiere la necesidad de un preprocesamiento antes de realizar análisis más detallados.
 
+```{r}
+library(ggplot2)
+# Seleccionar solo variables numéricas
+numeric_vars <- movies[, sapply(movies, is.numeric)]
+
+# Función para realizar prueba de Shapiro-Wilk en cada variable
+shapiro_results <- sapply(numeric_vars, function(x) {
+  if (length(x) > 5000) { # Shapiro-Wilk no se recomienda para n > 5000
+    return(NA)
+  } else {
+    return(shapiro.test(x)$p.value)
+  }
+})
+
+# Crear histogramas y QQ-Plots para algunas variables clave
+par(mfrow = c(2, 2))
+hist(movies$budget, main="Histograma de Presupuesto", col="lightblue")
+qqnorm(movies$budget); qqline(movies$budget, col="red")
+
+hist(movies$revenue, main="Histograma de Ingresos", col="lightgreen")
+qqnorm(movies$revenue); qqline(movies$revenue, col="red")
+
+# Tabla de Frecuencias para variables categóricas
+categorical_vars <- c("genres", "originalLanguage", "productionCompany")
+
+```
