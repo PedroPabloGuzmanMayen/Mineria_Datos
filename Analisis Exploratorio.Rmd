@@ -9,36 +9,322 @@ output: html_document
 # Aqui agregar el path al archivo csv, a mi me inicia en /home
 movies <- read.csv('movies.csv', stringsAsFactors = FALSE)
 ```
-
-```{r}
 # 1. Exploracion de datos 
+```{r}
 summary(movies)
 ```
 El resumen generado con summary(movies) muestra estadísticas descriptivas de las variables en el dataset. Para las variables numéricas, proporciona valores mínimos, máximos, media, mediana y cuartiles, lo que ayuda a entender su distribución y detectar posibles valores atípicos. En el caso de las variables categóricas o de texto, indica la cantidad de registros y su tipo de dato. Además, se observa la presencia de valores faltantes en algunas columnas, como video, revenue y runtime, lo que sugiere la necesidad de un preprocesamiento antes de realizar análisis más detallados.
 
+# 3. Investigacion de variables cuantitativas
+```{r}
+library(moments)
+# Lista con las variables cuantitativas que identificamos en el summary
+variables_cuantitativas <- c("id", "budget", "revenue", "runtime", "popularity",
+                           "voteAvg", "voteCount", "genresAmount", 
+                           "productionCoAmount", "productionCountriesAmount", 
+                           "actorsAmount")
+
+# Función para realizar pruebas de normalidad
+analizar_normalidad <- function(variable) {
+    # Test de Kolmogorov-Smirnov
+    x <- movies[[variable]]
+    x_clean <- x[!is.na(x)]  # Removing NA values
+    
+    # Calculo de media y desviacion estandar
+    media <- mean(x_clean)
+    desv <- sd(x_clean)
+    
+    # Test ks
+    test_ks <- ks.test(x_clean, "pnorm", mean = media, sd = desv)
+    
+    asimetria <- skewness(x_clean)
+    curtosis <- kurtosis(x_clean)
+    
+    # graficas
+    par(mfrow = c(1, 2))
+    
+    # histograma
+    hist(x_clean, 
+         main = paste("Histograma de", variable),
+         xlab = variable,
+         freq = FALSE,
+         breaks = 30)
+    curve(dnorm(x, mean = media, sd = desv),
+          add = TRUE, col = "red")
+    
+    # qqplot
+    qqnorm(x_clean, 
+           main = paste("Gráfico Q-Q de", variable))
+    qqline(x_clean, col = "red")
+   
+    par(mfrow = c(1, 1))
+
+    return(list(
+        variable = variable,
+        ks_test = test_ks,
+        asimetria = asimetria,
+        curtosis = curtosis
+    ))
+}
+
+resultados <- list()
+for(var in variables_cuantitativas) {
+    resultados[[var]] <- analizar_normalidad(var)
+    cat("\n=== Análisis de Normalidad para", var, "===\n")
+    cat("Test de Kolmogorov-Smirnov:\n")
+    cat("D =", resultados[[var]]$ks_test$statistic, "\n")
+    cat("p-value =", resultados[[var]]$ks_test$p.value, "\n")
+    cat("Asimetría:", resultados[[var]]$asimetria, "\n")
+    cat("Curtosis:", resultados[[var]]$curtosis, "\n")
+    cat("\nInterpretación:\n")
+    if(resultados[[var]]$ks_test$p.value < 0.05) {
+        cat("La variable NO sigue una distribución normal (p < 0.05)\n")
+    } else {
+        cat("La variable sigue una distribución normal (p >= 0.05)\n")
+    }
+    cat("----------------------------------------\n")
+}
+```
+
+# 4.1 Películas con más presupuesto
+
+A continuación se mostrarán las 10 películas con mayor presupuesto y algunos datos de importancia.
+
+```{r}
+cat("*** Top 10 Películas con mayor presupuesto ***\n")
+top <- movies[order(movies$budget, decreasing=TRUE),]
+top_10 <- head(top[,c("title", "budget", "revenue","releaseDate")], 10)
+print(top_10)
+```
+
+# 4.3 Película con más votos
+```{r}
+cat("*** Película con más votos***")
+topvot <- movies[order(movies$voteCount, decreasing=TRUE),]
+topvot <- head(topvot[,c("title", "voteCount")], 1)
+sprintf("%s es la película con más votos, con un total de %s",
+        topvot$title, topvot$voteCount)
+```
+
+# 4.5 Cantidad de películas por año
+```{r}
+cat("*** Cantidad de películas por año***")
+
+movies$year <- as.numeric(substr(movies$releaseDate,1,4))
+peliculas_año <- table(movies$year)
+
+df_peliculas_año <- as.data.frame(peliculas_año)
+colnames(df_peliculas_año) <-c("Año","Cantidad")
+
+df_peliculas_año <- df_peliculas_año[order(df_peliculas_año$Año),]
+
+barplot(df_peliculas_año$Cantidad,
+        names.arg = df_peliculas_año$Año,
+        main = "Cantidad de Películas por Año",
+        xlab = "Año",
+        ylab = "Cantidad de Películas",
+        las = 2,         
+        col = "yellow")
+```
+
+Se puede observar que la cantidad de películas tiene una tendencia positiva conforme pasan los años. Siendo 2021 el año con más películas lanzadas.
+
+# 4.7 Género con mayor ganancia
+```{r}
+library(data.table)
+
+cat("*** Género con mayor ganancia ***\n")
+setDT(movies)
+movies[, revenue := as.numeric(revenue)]
+movies[, genres := strsplit(genres, split = "|", fixed = TRUE)]
+movie_genres <- movies[, .(GENRE = unlist(genres), REVENUE = revenue)]
+movie_genres <- movie_genres[, .(TOTAL_REVENUE = sum(REVENUE, na.rm = TRUE)), by = GENRE]
+
+movie_genres <- movie_genres[order(-TOTAL_REVENUE)]
+
+barplot(setNames(movie_genres$TOTAL_REVENUE, movie_genres$GENRE), 
+        main = "Género con mayor ganancia", 
+        xlab = "Género",
+        ylab = "Ganancia Total",
+        las = 2, 
+        col = "purple",  
+        cex.names = 0.8)  
+
+cat("El género con mayores ingresos es", movie_genres$GENRE[1], 
+    "con una ganancia total de $", format(movie_genres$TOTAL_REVENUE[1], big.mark = ","), ".\n")
+```
+
+# 4.9 Relacion entre la cantidad de hombres y mujeres y la popularidad/ingresos de las películas
+
 ```{r}
 library(ggplot2)
-# Seleccionar solo variables numéricas
-numeric_vars <- movies[, sapply(movies, is.numeric)]
+library(data.table)
 
-# Función para realizar prueba de Shapiro-Wilk en cada variable
-shapiro_results <- sapply(numeric_vars, function(x) {
-  if (length(x) > 5000) { # Shapiro-Wilk no se recomienda para n > 5000
-    return(NA)
-  } else {
-    return(shapiro.test(x)$p.value)
-  }
-})
+setDT(movies)
 
-# Crear histogramas y QQ-Plots para algunas variables clave
-par(mfrow = c(2, 2))
-hist(movies$budget, main="Histograma de Presupuesto", col="lightblue")
-qqnorm(movies$budget); qqline(movies$budget, col="red")
+movies[, revenue := as.numeric(revenue)]
+movies[, popularity := as.numeric(popularity)]
+movies[, castWomenAmount := as.numeric(castWomenAmount)]
+movies[, castMenAmount := as.numeric(castMenAmount)]
 
-hist(movies$revenue, main="Histograma de Ingresos", col="lightgreen")
-qqnorm(movies$revenue); qqline(movies$revenue, col="red")
+movies[, diferencial := castMenAmount - castWomenAmount]
 
-# Tabla de Frecuencias para variables categóricas
-categorical_vars <- c("genres", "originalLanguage", "productionCompany")
+ggplot(movies, aes(x = diferencial, y = popularity)) +
+  geom_point(alpha = 0.3, color = "blue") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Diferencial de género en el reparto vs Popularidad",
+       x = "Diferencial (Hombres - Mujeres)",
+       y = "Popularidad") +
+  theme_minimal()
 
+ggplot(movies, aes(x = diferencial, y = revenue)) +
+  geom_point(alpha = 0.3, color = "green") +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  labs(title = "Diferencial de género en el reparto vs Ingresos",
+       x = "Diferencial (Hombres - Mujeres)",
+       y = "Ingresos ($)") +
+  theme_minimal()
+
+cor_popularity <- cor(movies$diferencial, movies$popularity, use = "complete.obs")
+cor_revenue <- cor(movies$diferencial, movies$revenue, use = "complete.obs")
+
+cat("*** Análisis de correlaciones ***\n")
+cat("Correlación entre diferencial de género y popularidad:", round(cor_popularity, 3), "\n")
+cat("Correlación entre diferencial de género e ingresos:", round(cor_revenue, 3), "\n")
 ```
+
+La correlación entre el diferencial de género y popularidad de una película es de 0.003, prácticamente nulo; Esto indica que la cantidad de hombres y mujeres en el reparto no tiene impacto significativo en la popularidad de las películas.
+
+Mientras que la correlación de género e ingresos es de -0.06, un poco más alto que la popularidad, pero aun es inferior a un 0.1 lo cual sugiere que no tiene impacto significativo en los ingresos.
+
+# 4.11 Correlacion de presupuestos con ingresos
+
+```{r}
+correlacion <- cor(movies$budget, movies$revenue)
+
+test_cor <- cor.test(movies$budget, movies$revenue)
+
+movies$budget_M <- movies$budget/1e6
+movies$revenue_M <- movies$revenue/1e6
+
+# gráfico de dispersión
+plot(movies$budget_M, movies$revenue_M,
+     main = "Relación entre Presupuesto e Ingresos",
+     xlab = "Presupuesto (millones USD)",
+     ylab = "Ingresos (millones USD)",
+     pch = 16,
+     col = rgb(0, 0, 1, 0.3))
+
+# línea de regresión
+modelo <- lm(revenue_M ~ budget_M, data = movies)
+abline(modelo, col = "red", lwd = 2)
+
+# histogramas
+par(mfrow = c(2, 1))
+
+# histograma de presupuestos
+hist(movies$budget_M,
+     main = "Distribución de Presupuestos",
+     xlab = "Presupuesto (millones USD)",
+     col = "lightblue",
+     breaks = 50)
+
+# gistograma de ingresos
+hist(movies$revenue_M,
+     main = "Distribución de Ingresos",
+     xlab = "Ingresos (millones USD)",
+     col = "lightgreen",
+     breaks = 50)
+
+par(mfrow = c(1, 1))
+
+summary_stats <- data.frame(
+    Estadística = c("Correlación", "P-valor", "R²"),
+    Valor = c(correlacion, 
+              test_cor$p.value,
+              summary(modelo)$r.squared)
+)
+
+cat("\n=== Análisis de Correlación entre Presupuesto e Ingresos ===\n")
+print(summary_stats)
+
+movies$roi <- ((movies$revenue - movies$budget) / movies$budget) * 100
+movies$presupuesto_categoria <- cut(movies$budget_M, 
+                                  breaks = c(0, 10, 50, 100, Inf),
+                                  labels = c("Bajo (<10M)", 
+                                           "Medio (10M-50M)",
+                                           "Alto (50M-100M)",
+                                           "Muy alto (>100M)"))
+
+roi_por_categoria <- aggregate(roi ~ presupuesto_categoria, 
+                             data = movies, 
+                             FUN = function(x) mean(x, na.rm = TRUE))
+
+cat("\n=== ROI Promedio por Categoría de Presupuesto ===\n")
+print(roi_por_categoria)
+```
+
+La correlación entre presupuesto e ingresos es 0.757, indicando una relación fuerte y positiva. Esto sugiere que las películas con mayor presupuesto tienden a generar mayores ingresos. El valor p = 0.000 confirma que esta relación es significativa.
+
+En cuanto al ROI promedio, las películas de bajo presupuesto (<10M) tienen un retorno sobresaliente de 1843.60%, mientras que las de presupuesto medio (10M-50M) y alto presupuesto (50M-100M) tienen retornos de 203.52% y 162.48%, respectivamente. Las de muy alto presupuesto (>100M) tienen un ROI de 215.17%, lo que sugiere que los grandes presupuestos no siempre generan los mejores retornos relativos.
+
+# 4.13 Meses con mayores ingresos
+
+```{r}
+movies$month <- as.numeric(substr(movies$releaseDate, 6, 7))
+ingresos_por_mes <- aggregate(revenue ~ month, data = movies, FUN = mean)
+colnames(ingresos_por_mes) <- c("Mes", "Ingreso_Promedio")
+
+ingresos_por_mes$Ingreso_Promedio <- ingresos_por_mes$Ingreso_Promedio / 1e6
+
+peliculas_por_mes <- table(movies$month)
+df_peliculas_mes <- as.data.frame(peliculas_por_mes)
+colnames(df_peliculas_mes) <- c("Mes", "Cantidad")
+
+resultados_mes <- merge(ingresos_por_mes, df_peliculas_mes)
+
+nombres_meses <- c("Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre")
+resultados_mes$Nombre_Mes <- nombres_meses[resultados_mes$Mes]
+
+resultados_mes <- resultados_mes[order(-resultados_mes$Ingreso_Promedio),]
+
+cat("\nIngresos promedio y cantidad de películas por mes:\n")
+print(resultados_mes[, c("Nombre_Mes", "Ingreso_Promedio", "Cantidad")])
+cat("\nPromedio de películas lanzadas por mes:", mean(resultados_mes$Cantidad))
+```
+
+Se observa que los lanzamientos más exitosos en cuanto a ingresos ocurren en los últimos meses del año, especialmente en noviembre y diciembre. Esto puede estar relacionado con las festividades y la mayor afluencia en la temporada navideña.
+
+Además, el número promedio de películas lanzadas por mes, se mantiene bastante constante a lo largo del año. Sin embargo, no hay meses específicos con un número desproporcionado de lanzamientos, lo que refleja una distribución uniforme de los estrenos a lo largo del año.
+
+# 4.15 Estrategia de marketing que genera mejores resultados
+
+```{r}
+tabla1 <- movies[is.na(movies$homePage) & movies$video == TRUE, ]
+tabla2 <- movies[!is.na(movies$homePage) & movies$video == FALSE, ]
+tabla3 <- movies[!is.na(movies$homePage) & movies$video == TRUE, ]
+
+promedio1 <- mean(tabla1$revenue, na.rm = TRUE)
+promedio2 <- mean(tabla2$revenue, na.rm = TRUE)
+promedio3 <- mean(tabla3$revenue, na.rm = TRUE)
+
+cantidad1 <- nrow(tabla1)
+cantidad2 <- nrow(tabla2)
+cantidad3 <- nrow(tabla3)
+
+df_resultados <- data.frame(
+  Categoria = c("Sin homePage y con video", 
+                "Con homePage y sin video", 
+                "Con homePage y con video"),
+  Promedio_Ganancia = c(promedio1, promedio2, promedio3),
+  Cantidad_Peliculas = c(cantidad1, cantidad2, cantidad3)
+)
+
+df_resultados$Promedio_Ganancia_M <- round(df_resultados$Promedio_Ganancia / 1e6, 2)
+
+cat("=== Análisis de Estrategias de Marketing ===\n\n")
+print(df_resultados[, c("Categoria", "Promedio_Ganancia_M", "Cantidad_Peliculas")])
+```
+
+Parece que las películas con página web oficial son las que generan mayores ingresos, especialmente cuando se comparan con las que no tienen página web. Sin embargo, la presencia de videos promocionales parece ser menos efectiva cuando no se tiene una página web, o cuando el número de películas analizadas es muy pequeño. Es posible que otros factores como la campaña de marketing, la temática o el elenco también influencien los resultados.
