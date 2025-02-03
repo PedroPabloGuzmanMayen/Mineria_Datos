@@ -1,10 +1,10 @@
 ---
 title: "Analisis exploratorio"
-author: "Gustavo Cruz"
+author: "Gustavo Cruz, Pedro Guzmán"
 date: "2025-01-31"
 output: html_document
 ---
-
+Repositorio: https://github.com/PedroPabloGuzmanMayen/Mineria_Datos.git
 ```{r}
 # Aqui agregar el path al archivo csv, a mi me inicia en /home
 movies <- read.csv('movies.csv', stringsAsFactors = FALSE)
