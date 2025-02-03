@@ -1,0 +1,240 @@
+---
+title: "Impares"
+output: html_document
+date: "2025-01-31"
+---
+```{r}
+#Agregar el dataset
+movies <- read.csv('movies.csv', stringsAsFactors = FALSE)
+```
+## 2 Tipos de variable
+ID: es una variable cualitativa nominal, pues sirve para identificar cada película
+
+Popularity: es una variable cuantitativa medible continua pues es una cantdad que puede medirse en base a ciertos criterios.  
+
+Budget: es una variable cuantitativa contable pues representa una cantidad de dinero.
+
+Revenue: es una variable cuantitativa contable ya que representa una cantidad de dinero.
+
+"Original title: es una variable cualitativa nominal ya que sirve para identificar el nombre de cada película."
+
+Original language: es una variable cualitativa nominal ya que sirve para indicar en que lenguaje se hizo la película originalmente. 
+
+Title: es una variable cualitativa nominal y sirve para indicar cuál es el título en inglés de la película
+
+Home page: es una variable cualitativa nominal y sirve para indicar si la película tiene un sitio web.
+
+Video: es una variable cualitativa nominal, pues sirve para idnciar si la película tiene promocionales o no.
+
+Director: es una variable cualitativa nominal la cua´l indica el nombre del director de la película. 
+
+Runtime: es una variable cuantitativa continua medible, pues sirve para indicar el tiempo de duración de la película el cuál puede ser perfectamente medido con aparatos como un temporizador o cronómetro.
+
+Genres: es una variable cualitativa nominal pues sirve para identificar los géneros de la película.
+
+Genres amount: es una variable cuantitativa discreta pues indica la cantidad de géneros a los que pertence cada película.
+
+Production company: es una variale cualitativa nominal la cual indica la compañía que produjo la película.
+
+Production company amount: es una variable cuantitativa discreta que indica la cantidad de compañías involucradas en la producción de la película.
+
+Production company country: es una variable cualitativa nominal pues sirve para indicar que países estuvieron involucrados en la producción de la película.
+
+Production countries amount: es una variable cuantitativa discreta la cuál indica la cantidadde países involucrados en la producción de la película.
+
+Release date: es una variable cuantitativa nominal pues indica la fecha de lanzamiento de la película. A pesar de ser numeral no es cuantitativa pues no puede contarse.
+
+Vote count: es una variable cuantitativa discreta pues indica la cantidad de gente que reseñó la película."
+
+Vote average: es una variable 
+
+Actors: es una variable cualitativa nominal la cuál indica el nombre de los actores involucrados en la película.
+
+"Actors popularity: es una variable cuantitatva discreta la cuál sirve panra indicar, en números decimales, que tan poular es un actor."
+
+Actor Character: es una variable cualitativa nominal pues sirve para indicar el nombre del personaje que interpreta cada actor en la película.
+
+Actors amount: es una variable cuantitativa discreta pues indica la cantidad de actores que están involucrados en la película. 
+
+Cast women amount: es una variable cuantitativa discreta la cuál indica la cantidad de actrices que participaron en la película.
+
+Cast men amount: es una variable cuantitativa discreta que indica la canidad de actores que participaron el la película.
+
+## 4.2 Películas que más ingresos generaron
+```{r}
+top10movies <- head(movies[order(movies$revenue, decreasing = TRUE), c("originalTitle", "revenue")], 10)
+
+top10movies
+
+```
+Se puede observar que la película que más ingresos ha generado es `r top10movies[1,1]` mientras que el puesto 10 lo ocupa `r top10movies[10,1]`. Otro dato interesante es que hay 3 películas de Avengers en el top 10.
+
+## 4.4 Peor película de acuerdo a los votos de los usuarios
+```{r}
+
+
+worstmovie <- head(movies[order(movies$voteCount, decreasing = FALSE), c("originalTitle", "voteCount")], 1)
+
+worstmovie
+```
+
+En base a los votos de los usuarios se puede decir que `r worstmovie` es la peor película. 
+
+## 4.6.1  Género principal de las 20 películas más recientes
+```{r}
+
+genres <- head(movies[order(movies$releaseDate, decreasing = TRUE), c("genres", "originalTitle")], 20)
+
+
+
+genres_splitted <- strsplit(genres$genres, split = "|", fixed = TRUE)
+
+genre_table <- table(unlist(genres_splitted))
+
+most_popular_genre = names(genre_table)[which.max(genre_table)]
+
+times_poula_genre = max(genre_table)
+
+genres
+
+```
+El género principal es las 20 películas más recientes es el de `r most_popular_genre`, este está presente en `r times_poula_genre ` películas
+
+## 4.6.2 Género más popular en general
+```{r}
+
+
+library(ggplot2)
+
+all_genres <- movies[, "genres"]
+
+all_genres_splitted <- strsplit(all_genres, split = "|", fixed = TRUE)
+
+
+table_genres <- table(unlist(all_genres_splitted))
+
+genres_df <- as.data.frame(table_genres)
+
+colnames(genres_df) <- c("Genero", "Frecuencia")
+
+
+ggplot(genres_df, aes(x = Genero, y = Frecuencia)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "Gráfico de barras",
+       x = "Genero",
+       y = "Frecuencia")
+
+
+```
+Se puede observar que el drama es el género más popular. 
+
+
+## 4.6.3 Género de las películas más largas
+
+```{r}
+
+
+quantile_test <- quantile(movies[, "runtime"], 0.75)
+
+
+
+largest_movies_genres <- movies[movies$runtime > quantile_test, "genres" ]
+
+largest_movies_genres_splitted <- strsplit(largest_movies_genres, split = "|", fixed = TRUE)
+
+new_table <- table(unlist(largest_movies_genres_splitted))
+
+new_table
+
+```
+El género predominante en las películas más largas es el de `r names(new_table)[which.max(new_table)]`
+
+## 4.8.1 ¿La cantidad de actores influye en el éxito de las películas?
+
+```{r}
+library(ggplot2)
+
+
+
+
+ggplot(movies, aes(x = actorsAmount, y = revenue)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm") +
+  labs(title = "Cantidad de actores vs ingresos",
+       x = "Cantidad de Actores",
+       y = "Ingresos") +
+  xlim(0, 250)
+
+
+
+
+```
+Según el diagrama de correlación no hay relación lineal entre la cantidad de actores en una película y la cantidad de ingresos generados, una película con gran cantidad de actores no implica que tenga grandes ingresos. 
+## 4.8.2 ¿Ha amuentado la cantidad de actores conforme a los años?
+
+```{r}
+
+library(dplyr)
+
+movies$releaseYear <- substr(movies$releaseDate, 1, 4)
+
+movies_years <- movies[, c("actorsAmount", "releaseYear")]
+
+movies_grouped <- movies_years %>%
+  group_by(releaseYear) %>%
+  summarise(avg_actors = mean(actorsAmount, na.rm = TRUE))
+
+ggplot(movies_grouped, aes(x = as.numeric(releaseYear), y = avg_actors)) +
+  geom_line(color = "blue") +
+  labs(title = "Number of Movies Released Per Year",
+       x = "Year",
+       y = "Number of Movies") +
+  theme_minimal()
+
+
+```
+
+El gráfico muestra que a partir de la década de los 2000 ha habido un incremento en el promedio de actores involucrados en del desarrollo de una película, sin embargo hay un notorio bajón en el año 2022, esto podría deberse a que en el dataset no se tiene registro de las películas más populares de ese año. 
+
+## 4.10 Directores de las 20 películas mejor caificadas
+
+```{r}
+best_rated_movies = movies[ order(movies$voteAvg != " ", decreasing = TRUE), c("director", "originalTitle")]
+
+head(best_rated_movies, 20)
+```
+
+## 4.12 ¿Se asocian ciertos meses de lanzamiento con mejores ingresos?
+
+```{r}
+
+
+
+movies$releaseMonth <- substr(movies$releaseDate, 6, 7)
+
+movies_months <- movies[, c("revenue", "releaseMonth")]
+
+movies_grouped_month <- movies_months %>%
+  group_by(releaseMonth) %>%
+  summarise(total_revenue = sum(revenue, na.rm = TRUE))
+
+ggplot(movies_grouped_month, aes(x = releaseMonth, y = total_revenue)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "Recaudación total en base al mes de lanzamiento",
+       x = "Mes",
+       y = "Ingresos totales")
+
+
+```
+
+El gráfico muestra que en los meses de junio y diciembre se han obtenido más ganancias que en otros meses, esto puede deberse a que en varios países hay vacaciones de verano durante junio, mientras que en diciembre se celebran las fiestas y para algunas familias es una tradición ir al cine en estas fechas. 
+
+
+## 4.14
+
+```{r}
+
+```
+
+
+
