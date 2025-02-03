@@ -230,11 +230,35 @@ ggplot(movies_grouped_month, aes(x = releaseMonth, y = total_revenue)) +
 El gráfico muestra que en los meses de junio y diciembre se han obtenido más ganancias que en otros meses, esto puede deberse a que en varios países hay vacaciones de verano durante junio, mientras que en diciembre se celebran las fiestas y para algunas familias es una tradición ir al cine en estas fechas. 
 
 
-## 4.14
+## 4.14 ¿Cómo se correlacionan las calificaciones con el éxito comercial?
+
+```{r}
+ggplot(movies, aes(x = voteAvg, y = revenue)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm") +
+  labs(title = "Calificaciones vs ingresos obtenidos",
+       x = "Calificacion de la pelicula",
+       y = "Ingresos")
+```
+## 4.16 ¿La popularidad del elenco está directamente correlacionada con el éxito de taquilla?
 
 ```{r}
 
-```
+movies$avg_popularity <- sapply(strsplit(movies$actorsPopularity, "\\|"), function(x) mean(as.numeric(x), na.rm = TRUE))
 
+
+
+ggplot(movies, aes(x = avg_popularity, y = revenue)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm") +
+  labs(title = "Popularidad vs ingresos obtenidos",
+       x = "Popularidad promedio de los actores",
+       y = "Ingresos")
+
+
+
+
+```
+Según el gráfic, la popularidad de los actores no afecta el rendimiento en taquilla
 
 
